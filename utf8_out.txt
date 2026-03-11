@@ -1,0 +1,23 @@
+﻿Analyzing lib...
+
+  error - services\auth.dart:12:13 - 'AuthException' isn't a function. Try correcting the name to match an existing function, or define a method or function named 'AuthException'. - invocation_of_non_function
+  error - services\auth.dart:12:13 - The name 'AuthException' is defined in the libraries 'package:gotrue/src/types/auth_exception.dart (via package:supabase_flutter/supabase_flutter.dart)' and 'package:supbase_flutter_coures/core/errors/app_exception.dart'. Try using 'as prefix' for one of the import directives, or hiding the name from all but one of the imports. - ambiguous_import
+  error - services\auth.dart:23:13 - 'AuthException' isn't a function. Try correcting the name to match an existing function, or define a method or function named 'AuthException'. - invocation_of_non_function
+  error - services\auth.dart:23:13 - The name 'AuthException' is defined in the libraries 'package:gotrue/src/types/auth_exception.dart (via package:supabase_flutter/supabase_flutter.dart)' and 'package:supbase_flutter_coures/core/errors/app_exception.dart'. Try using 'as prefix' for one of the import directives, or hiding the name from all but one of the imports. - ambiguous_import
+  error - services\auth.dart:34:13 - 'AuthException' isn't a function. Try correcting the name to match an existing function, or define a method or function named 'AuthException'. - invocation_of_non_function
+  error - services\auth.dart:34:13 - The name 'AuthException' is defined in the libraries 'package:gotrue/src/types/auth_exception.dart (via package:supabase_flutter/supabase_flutter.dart)' and 'package:supbase_flutter_coures/core/errors/app_exception.dart'. Try using 'as prefix' for one of the import directives, or hiding the name from all but one of the imports. - ambiguous_import
+  error - services\storage_service.dart:17:15 - The name 'StorageException' is defined in the libraries 'package:storage_client/src/types.dart (via package:supabase_flutter/supabase_flutter.dart)' and 'package:supbase_flutter_coures/core/errors/app_exception.dart'. Try using 'as prefix' for one of the import directives, or hiding the name from all but one of the imports. - ambiguous_import
+  error - services\storage_service.dart:25:13 - 'StorageException' isn't a function. Try correcting the name to match an existing function, or define a method or function named 'StorageException'. - invocation_of_non_function
+  error - services\storage_service.dart:25:13 - The name 'StorageException' is defined in the libraries 'package:storage_client/src/types.dart (via package:supabase_flutter/supabase_flutter.dart)' and 'package:supbase_flutter_coures/core/errors/app_exception.dart'. Try using 'as prefix' for one of the import directives, or hiding the name from all but one of the imports. - ambiguous_import
+  error - services\storage_service.dart:37:7 - The method 'debugPrint' isn't defined for the type 'StorageService'. Try correcting the name to the name of an existing method, or defining a method named 'debugPrint'. - undefined_method
+  error - shared\theme\app_theme.dart:63:18 - The argument type 'CardTheme' can't be assigned to the parameter type 'CardThemeData?'.  - argument_type_not_assignable
+   info - data\models\note.dart:1:53 - Angle brackets will be interpreted as HTML. Try using backticks around the content with angle brackets, or try replacing `<` with `&lt;` and `>` with `&gt;`. - unintended_html_in_doc_comment
+   info - screans\editnote.dart:140:27 - Unnecessary use of multiple underscores. Try using '_'. - unnecessary_underscores
+   info - screans\editnote.dart:140:31 - Unnecessary use of multiple underscores. Try using '_'. - unnecessary_underscores
+   info - services\notes.dart:6:3 - Missing type annotation. Try adding a type annotation. - strict_top_level_inference
+   info - services\notes.dart:11:3 - Missing type annotation. Try adding a type annotation. - strict_top_level_inference
+   info - services\notes.dart:12:3 - Missing type annotation. Try adding a type annotation. - strict_top_level_inference
+   info - services\notes.dart:13:3 - Missing type annotation. Try adding a type annotation. - strict_top_level_inference
+   info - services\notes.dart:14:3 - Missing type annotation. Try adding a type annotation. - strict_top_level_inference
+
+19 issues found.

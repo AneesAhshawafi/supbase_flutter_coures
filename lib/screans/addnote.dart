@@ -1,9 +1,13 @@
+import 'dart:io';
 import 'package:awesome_dialog/awesome_dialog.dart';
 import 'package:flutter/material.dart';
-import 'package:supbase_flutter_coures/component/textformfield.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
+import 'package:supbase_flutter_coures/core/errors/app_exception.dart';
+import 'package:supbase_flutter_coures/core/utils/validators.dart';
+import 'package:supbase_flutter_coures/data/repositories/note_repository.dart';
+import 'package:supbase_flutter_coures/services/storage_service.dart';
+import 'package:supbase_flutter_coures/shared/theme/app_theme.dart';
+import 'package:supbase_flutter_coures/shared/widgets/app_snackbar.dart';
 
 class Addnote extends StatefulWidget {
   const Addnote({super.key});
@@ -13,52 +17,36 @@ class Addnote extends StatefulWidget {
 }
 
 class _AddnoteState extends State<Addnote> {
-  TextEditingController titleController = TextEditingController();
-  TextEditingController contentController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  final _titleController = TextEditingController();
+  final _contentController = TextEditingController();
+  final _noteRepo = NoteRepository();
+  final _storageService = StorageService();
+
   XFile? _pickedImage;
-  String? _imageUploadedPath;
   bool _isSaving = false;
-  String? _titleError;
 
   @override
   void dispose() {
-    titleController.dispose();
-    contentController.dispose();
+    _titleController.dispose();
+    _contentController.dispose();
     super.dispose();
   }
 
-  Future<void> _uploadImage(XFile image) async {
-    final String uuidImage = DateTime.now().toIso8601String();
-    final String fileName = image.name;
-    final String filePath = 'public/${uuidImage}_$fileName';
-    _imageUploadedPath = filePath;
-    try {
-      await Supabase.instance.client.storage
-          .from('notes')
-          .upload(filePath, File(image.path));
-    } catch (e) {
-      debugPrint('Error uploading image: $e');
-    }
-  }
-
   Future<void> _pickImage(ImageSource source) async {
-    final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: source);
-    if (image != null) {
-      setState(() {
-        _pickedImage = image;
-      });
-    }
+    final picker = ImagePicker();
+    final image = await picker.pickImage(source: source, imageQuality: 80);
+    if (image != null) setState(() => _pickedImage = image);
   }
 
   void _showImageSourceDialog() {
     AwesomeDialog(
       context: context,
-      title: "Choose Source",
       dialogType: DialogType.noHeader,
       animType: AnimType.bottomSlide,
-      body: Container(
-        padding: const EdgeInsets.all(10),
+      title: 'Select Image',
+      body: Padding(
+        padding: const EdgeInsets.all(8),
         child: Column(
           children: [
             ListTile(
@@ -70,7 +58,7 @@ class _AddnoteState extends State<Addnote> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.browse_gallery_outlined),
+              leading: const Icon(Icons.photo_library_outlined),
               title: const Text('Gallery'),
               onTap: () {
                 Navigator.of(context).pop();
@@ -83,59 +71,28 @@ class _AddnoteState extends State<Addnote> {
     ).show();
   }
 
-  Future<void> _addNote() async {
-    final String title = titleController.text.trim();
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
 
-    // Validation
-    if (title.isEmpty) {
-      setState(() => _titleError = 'Title is required');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Title is required'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-
-    setState(() {
-      _isSaving = true;
-      _titleError = null;
-    });
-
+    setState(() => _isSaving = true);
     try {
+      String? imagePath;
       if (_pickedImage != null) {
-        await _uploadImage(_pickedImage!);
+        imagePath = await _storageService.uploadImage(_pickedImage!);
       }
 
-      await Supabase.instance.client.from("notes").insert({
-        "title": title,
-        "content": contentController.text.trim(),
-        "image_path": _imageUploadedPath,
-      });
+      await _noteRepo.create(
+        title: _titleController.text.trim(),
+        content: _contentController.text.trim(),
+        imagePath: imagePath,
+      );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Note added successfully!"),
-            duration: Duration(seconds: 2),
-            backgroundColor: Color.fromARGB(255, 81, 76, 175),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        AppSnackbar.success(context, 'Note added!');
         Navigator.of(context).pop();
       }
-    } catch (e) {
-      if (mounted) {
-        AwesomeDialog(
-          context: context,
-          title: "Error",
-          dialogType: DialogType.error,
-          desc: e.toString(),
-          btnOkOnPress: () {},
-        ).show();
-      }
+    } on AppException catch (e) {
+      if (mounted) AppSnackbar.error(context, e.message);
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -145,108 +102,104 @@ class _AddnoteState extends State<Addnote> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Add Note"),
-        backgroundColor: Colors.black87,
-      ),
-      body: Container(
-        padding: const EdgeInsets.all(30),
-        child: ListView(
-          children: [
-            const SizedBox(height: 20),
-            // Title field — plain TextField so we can show inline error
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10, left: 20, right: 20),
-              child: TextField(
-                controller: titleController,
-                autofocus: true,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                  color: Color.fromARGB(255, 247, 241, 241),
-                ),
-                onChanged: (_) {
-                  if (_titleError != null) {
-                    setState(() => _titleError = null);
-                  }
-                },
-                decoration: InputDecoration(
-                  labelText: "Title *",
-                  hintText: "Enter note title",
-                  errorText: _titleError,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(50),
-                    borderSide: BorderSide(color: Colors.grey[300]!),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(50),
-                    borderSide: BorderSide(color: Colors.grey[300]!),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(50),
-                    borderSide: const BorderSide(
-                      color: Color.fromARGB(255, 234, 214, 140),
+        title: const Text('New Note'),
+        actions: [
+          _isSaving
+              ? const Padding(
+                  padding: EdgeInsets.all(14),
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
                     ),
                   ),
-                  errorBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(50),
-                    borderSide: const BorderSide(color: Colors.redAccent),
+                )
+              : TextButton(
+                  onPressed: _submit,
+                  child: const Text(
+                    'Save',
+                    style: TextStyle(color: Colors.white, fontSize: 16),
                   ),
                 ),
+        ],
+      ),
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            // ── Title ──────────────────────────────────────────────────
+            TextFormField(
+              controller: _titleController,
+              autofocus: true,
+              validator: NoteValidators.title,
+              decoration: const InputDecoration(
+                labelText: 'Title *',
+                hintText: 'Enter note title',
               ),
             ),
-            const SizedBox(height: 10),
-            FormInput(
-              label: "Content",
-              hintText: "Enter note content",
-              controller: contentController,
-              maxLines: 8,
+            const SizedBox(height: 16),
+
+            // ── Content ────────────────────────────────────────────────
+            TextFormField(
+              controller: _contentController,
+              maxLines: 10,
+              minLines: 4,
+              decoration: const InputDecoration(
+                labelText: 'Content',
+                hintText: 'Write your note here…',
+                alignLabelWithHint: true,
+              ),
             ),
             const SizedBox(height: 20),
+
+            // ── Image preview ──────────────────────────────────────────
             ClipRRect(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(12),
               child: Container(
-                height: 200,
-                margin: const EdgeInsets.symmetric(horizontal: 20),
-                color: Colors.grey[800],
+                height: 180,
+                color: AppTheme.cardHoverColor,
                 child: _pickedImage != null
                     ? Image.file(
                         File(_pickedImage!.path),
                         fit: BoxFit.cover,
                         width: double.infinity,
                       )
-                    : const Center(
-                        child: Icon(
-                          Icons.image_outlined,
-                          size: 48,
-                          color: Colors.grey,
-                        ),
+                    : Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.image_outlined,
+                            size: 48,
+                            color: AppTheme.mutedColor,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'No image selected',
+                            style: TextStyle(color: AppTheme.mutedColor),
+                          ),
+                        ],
                       ),
               ),
             ),
-            const SizedBox(height: 20),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: ElevatedButton.icon(
-                onPressed: _isSaving ? null : _showImageSourceDialog,
-                icon: const Icon(Icons.image),
-                label: const Text("Select Image"),
-              ),
-            ),
             const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: ElevatedButton(
-                onPressed: _isSaving ? null : _addNote,
-                child: _isSaving
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text("Add Note"),
+
+            // ── Image picker button ────────────────────────────────────
+            OutlinedButton.icon(
+              onPressed: _isSaving ? null : _showImageSourceDialog,
+              icon: const Icon(Icons.add_photo_alternate_outlined),
+              label: Text(
+                _pickedImage == null ? 'Add Image' : 'Change Image',
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppTheme.primaryColor,
+                side: const BorderSide(color: AppTheme.borderColor),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 14),
               ),
             ),
           ],
