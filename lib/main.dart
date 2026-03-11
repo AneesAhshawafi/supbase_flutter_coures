@@ -2,6 +2,10 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supbase_flutter_coures/screans/addnote.dart';
+import 'package:supbase_flutter_coures/screans/auth.dart';
+import 'package:supbase_flutter_coures/screans/home.dart';
+import 'package:supbase_flutter_coures/screans/viewnote.dart';
 import 'package:supbase_flutter_coures/services/auth.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -41,7 +45,6 @@ class MyApp extends StatelessWidget {
         print('No image selected.');
       }
     } catch (e) {
-      
       print('Error uploading image: $e');
     }
     return filePath;
@@ -57,139 +60,164 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: Scaffold(
-        body: Column(
-          children: [
-            SizedBox(height: 20),
-            Center(
-              child: ElevatedButton(
-                onPressed: () async {
-                  try {
-                    await AuthSupa().signUp(
-                      "alameryanis@gmail.com",
-                      "anees12345",
-                    );
-                  } catch (e) {
-                    print(e);
-                  }
-                },
-                child: Text("signUp"),
-              ),
-            ),
-            SizedBox(height: 20),
-            Center(
-              child: ElevatedButton(
-                onPressed: () async {
-                  try {
-                    await AuthSupa().signin(
-                      "alameryanis@gmail.com",
-                      "anees12345",
-                    );
-                  } catch (e) {
-                    print(e);
-                  }
-                },
-                child: Text("signIn"),
-              ),
-            ),
-            SizedBox(height: 20),
-            Center(
-              child: ElevatedButton(
-                onPressed: () async {
-                  try {
-                    await AuthSupa().logout();
-                  } catch (e) {
-                    print(e);
-                  }
-                },
-                child: Text("logout"),
-              ),
-            ),
-            SizedBox(height: 20),
-            Center(
-              child: Text(
-                Supabase.instance.client.auth.currentUser?.email ?? "no user",
-              ),
-            ),
-            SizedBox(height: 20),
-            Center(
-              child: ElevatedButton(
-                onPressed: () async {
-                  try {
-                    await Supabase.instance.client.from("notes").insert({
-                      "title": "note2",
-                      "content": "content2",
-                    });
-                  } catch (e) {
-                    print(e);
-                  }
-                },
-                child: Text("insert data"),
-              ),
-            ),
-            SizedBox(height: 20),
-            Center(
-              child: ElevatedButton(
-                onPressed: () async {
-                  try {
-                    List data = await Supabase.instance.client
-                        .from("notes")
-                        .select();
-                    print(data);
-                  } catch (e) {
-                    print(e);
-                  }
-                },
-                child: Text("get data"),
-              ),
-            ),
-            SizedBox(height: 20),
-            Center(
-              child: ElevatedButton(
-                onPressed: () async {
-                  try {
-                    await Supabase.instance.client
-                        .from("notes")
-                        .update({
-                          "title": "updated note",
-                          "content": "updated content",
-                          "updated_at": DateTime.now().toIso8601String(),
-                        })
-                        .eq(
-                          "id",
-                          "cc2ee2a6-3651-462a-bdc6-7747d488a816",
-                        ); // Assuming you want to update a specific note
-                    // print(data);
-                  } catch (e) {
-                    print(e);
-                  }
-                },
-                child: Text("update data"),
-              ),
-            ),
-            SizedBox(height: 20),
-            Center(
-              child: ElevatedButton(
-                onPressed: () async {
-                  try {
-                    await Supabase.instance.client
-                        .from("notes")
-                        .delete()
-                        .eq(
-                          "id",
-                          "cc2ee2a6-3651-462a-bdc6-7747d488a816",
-                        ); // Assuming you want to update a specific note
-                    // print(data);
-                  } catch (e) {
-                    print(e);
-                  }
-                },
-                child: Text("delete data"),
-              ),
-            ),
-          ],
-        ),
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        scaffoldBackgroundColor: Colors.black87,
+        colorScheme: ColorScheme.dark(),
       ),
+      home: StreamBuilder<AuthState>(
+        stream: Supabase.instance.client.auth.onAuthStateChange,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Scaffold(body: Center(child: CircularProgressIndicator()));
+          }
+          final session = snapshot.data?.session;
+          if (session != null) {
+            return Home();
+          } else {
+            return AuthPage();
+          }
+        },
+      ),
+      routes: {
+        "home": (context) => Home(),
+        "auth": (context) => AuthPage(),
+        "addnote": (context) => Addnote(),
+      },
     );
   }
 }
+
+// Scaffold(
+//         body: Column(
+//           children: [
+//             SizedBox(height: 20),
+//             Center(
+//               child: ElevatedButton(
+//                 onPressed: () async {
+//                   try {
+//                     await AuthSupa().signUp(
+//                       "alameryanis@gmail.com",
+//                       "anees12345",
+//                     );
+//                   } catch (e) {
+//                     print(e);
+//                   }
+//                 },
+//                 child: Text("signUp"),
+//               ),
+//             ),
+//             SizedBox(height: 20),
+//             Center(
+//               child: ElevatedButton(
+//                 onPressed: () async {
+//                   try {
+//                     await AuthSupa().signin(
+//                       "alameryanis@gmail.com",
+//                       "anees12345",
+//                     );
+//                   } catch (e) {
+//                     print(e);
+//                   }
+//                 },
+//                 child: Text("signIn"),
+//               ),
+//             ),
+//             SizedBox(height: 20),
+//             Center(
+//               child: ElevatedButton(
+//                 onPressed: () async {
+//                   try {
+//                     await AuthSupa().logout();
+//                   } catch (e) {
+//                     print(e);
+//                   }
+//                 },
+//                 child: Text("logout"),
+//               ),
+//             ),
+//             SizedBox(height: 20),
+//             Center(
+//               child: Text(
+//                 Supabase.instance.client.auth.currentUser?.email ?? "no user",
+//               ),
+//             ),
+//             SizedBox(height: 20),
+//             Center(
+//               child: ElevatedButton(
+//                 onPressed: () async {
+//                   try {
+//                     await Supabase.instance.client.from("notes").insert({
+//                       "title": "note2",
+//                       "content": "content2",
+//                     });
+//                   } catch (e) {
+//                     print(e);
+//                   }
+//                 },
+//                 child: Text("insert data"),
+//               ),
+//             ),
+//             SizedBox(height: 20),
+//             Center(
+//               child: ElevatedButton(
+//                 onPressed: () async {
+//                   try {
+//                     List data = await Supabase.instance.client
+//                         .from("notes")
+//                         .select();
+//                     print(data);
+//                   } catch (e) {
+//                     print(e);
+//                   }
+//                 },
+//                 child: Text("get data"),
+//               ),
+//             ),
+//             SizedBox(height: 20),
+//             Center(
+//               child: ElevatedButton(
+//                 onPressed: () async {
+//                   try {
+//                     await Supabase.instance.client
+//                         .from("notes")
+//                         .update({
+//                           "title": "updated note",
+//                           "content": "updated content",
+//                           "updated_at": DateTime.now().toIso8601String(),
+//                         })
+//                         .eq(
+//                           "id",
+//                           "cc2ee2a6-3651-462a-bdc6-7747d488a816",
+//                         ); // Assuming you want to update a specific note
+//                     // print(data);
+//                   } catch (e) {
+//                     print(e);
+//                   }
+//                 },
+//                 child: Text("update data"),
+//               ),
+//             ),
+//             SizedBox(height: 20),
+//             Center(
+//               child: ElevatedButton(
+//                 onPressed: () async {
+//                   try {
+//                     await Supabase.instance.client
+//                         .from("notes")
+//                         .delete()
+//                         .eq(
+//                           "id",
+//                           "cc2ee2a6-3651-462a-bdc6-7747d488a816",
+//                         ); // Assuming you want to update a specific note
+//                     // print(data);
+//                   } catch (e) {
+//                     print(e);
+//                   }
+//                 },
+//                 child: Text("delete data"),
+//               ),
+//             ),
+//           ],
+//         ),
+//       ),
