@@ -15,146 +15,238 @@ class Addnote extends StatefulWidget {
 class _AddnoteState extends State<Addnote> {
   TextEditingController titleController = TextEditingController();
   TextEditingController contentController = TextEditingController();
-  String? selectedImagePath;
   XFile? _pickedImage;
-  String? _imageUplodedPath;
+  String? _imageUploadedPath;
+  bool _isSaving = false;
+  String? _titleError;
 
-  uploadImage(XFile image) async {
-    String uuidImage = DateTime.now().toIso8601String();
-    // String extension = image.path.split('.').last;
-    String fileName = image.name;
-    String filePath = 'public/${uuidImage}_${fileName}';
-    _imageUplodedPath = filePath;
-    // setState(() {
-    // });
+  @override
+  void dispose() {
+    titleController.dispose();
+    contentController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _uploadImage(XFile image) async {
+    final String uuidImage = DateTime.now().toIso8601String();
+    final String fileName = image.name;
+    final String filePath = 'public/${uuidImage}_$fileName';
+    _imageUploadedPath = filePath;
     try {
       await Supabase.instance.client.storage
           .from('notes')
           .upload(filePath, File(image.path));
-      print('Image uploaded successfully!');
     } catch (e) {
-      print('Error uploading image: $e');
+      debugPrint('Error uploading image: $e');
     }
   }
 
-  pickImage(ImageSource source) async {
+  Future<void> _pickImage(ImageSource source) async {
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: source);
-    setState(() {
-      _pickedImage = image ?? null;
-      selectedImagePath = image?.path;
-    });
+    if (image != null) {
+      setState(() {
+        _pickedImage = image;
+      });
+    }
   }
 
-  String getImagePublicUrl(String imagePath) {
-    return Supabase.instance.client.storage
-        .from('notes')
-        .getPublicUrl(imagePath);
+  void _showImageSourceDialog() {
+    AwesomeDialog(
+      context: context,
+      title: "Choose Source",
+      dialogType: DialogType.noHeader,
+      animType: AnimType.bottomSlide,
+      body: Container(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined),
+              title: const Text('Camera'),
+              onTap: () {
+                Navigator.of(context).pop();
+                _pickImage(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.browse_gallery_outlined),
+              title: const Text('Gallery'),
+              onTap: () {
+                Navigator.of(context).pop();
+                _pickImage(ImageSource.gallery);
+              },
+            ),
+          ],
+        ),
+      ),
+    ).show();
+  }
+
+  Future<void> _addNote() async {
+    final String title = titleController.text.trim();
+
+    // Validation
+    if (title.isEmpty) {
+      setState(() => _titleError = 'Title is required');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Title is required'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+      _titleError = null;
+    });
+
+    try {
+      if (_pickedImage != null) {
+        await _uploadImage(_pickedImage!);
+      }
+
+      await Supabase.instance.client.from("notes").insert({
+        "title": title,
+        "content": contentController.text.trim(),
+        "image_path": _imageUploadedPath,
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Note added successfully!"),
+            duration: Duration(seconds: 2),
+            backgroundColor: Color.fromARGB(255, 81, 76, 175),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        AwesomeDialog(
+          context: context,
+          title: "Error",
+          dialogType: DialogType.error,
+          desc: e.toString(),
+          btnOkOnPress: () {},
+        ).show();
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Add Note"), backgroundColor: Colors.black87),
+      appBar: AppBar(
+        title: const Text("Add Note"),
+        backgroundColor: Colors.black87,
+      ),
       body: Container(
-        padding: EdgeInsets.all(30),
+        padding: const EdgeInsets.all(30),
         child: ListView(
           children: [
-            SizedBox(height: 20),
-            Form(
-              child: Column(
-                children: [
-                  FormInput(
-                    label: "Title",
-                    hintText: "Enter note title",
-                    controller: titleController,
+            const SizedBox(height: 20),
+            // Title field — plain TextField so we can show inline error
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10, left: 20, right: 20),
+              child: TextField(
+                controller: titleController,
+                autofocus: true,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  color: Color.fromARGB(255, 247, 241, 241),
+                ),
+                onChanged: (_) {
+                  if (_titleError != null) {
+                    setState(() => _titleError = null);
+                  }
+                },
+                decoration: InputDecoration(
+                  labelText: "Title *",
+                  hintText: "Enter note title",
+                  errorText: _titleError,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(50),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
                   ),
-                  SizedBox(height: 20),
-                  FormInput(
-                    label: "Content",
-                    hintText: "Enter note content",
-                    controller: contentController,
-                    maxLines: 8,
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(50),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
                   ),
-                  SizedBox(height: 20),
-                  Container(
-                    height: 200,
-                    // width: 300,
-                    margin: EdgeInsets.symmetric(horizontal: 20),
-                    child: _pickedImage != null
-                        ? Image.file(File(_pickedImage!.path))
-                        : Placeholder(),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(50),
+                    borderSide: const BorderSide(
+                      color: Color.fromARGB(255, 234, 214, 140),
+                    ),
                   ),
-                  SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: () {
-                      AwesomeDialog(
-                        context: context,
-                        title: "Choose Source",
-                        dialogType: DialogType.noHeader,
-                        animType: AnimType.bottomSlide,
-                        btnOkOnPress: () {},
-                        body: Container(
-                          padding: EdgeInsets.all(10),
-                          child: Column(
-                            children: [
-                              IconButton(
-                                onPressed: () {
-                                  selectedImagePath = null;
-                                  pickImage(ImageSource.camera);
-                                },
-                                icon: Icon(Icons.camera_alt_outlined),
-                              ),
-                              IconButton(
-                                onPressed: () {
-                                  selectedImagePath = null;
-                                  pickImage(ImageSource.gallery);
-                                },
-                                icon: Icon(Icons.browse_gallery_outlined),
-                              ),
-                            ],
-                          ),
+                  errorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(50),
+                    borderSide: const BorderSide(color: Colors.redAccent),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            FormInput(
+              label: "Content",
+              hintText: "Enter note content",
+              controller: contentController,
+              maxLines: 8,
+            ),
+            const SizedBox(height: 20),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                height: 200,
+                margin: const EdgeInsets.symmetric(horizontal: 20),
+                color: Colors.grey[800],
+                child: _pickedImage != null
+                    ? Image.file(
+                        File(_pickedImage!.path),
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                      )
+                    : const Center(
+                        child: Icon(
+                          Icons.image_outlined,
+                          size: 48,
+                          color: Colors.grey,
                         ),
-                      ).show();
-                    },
-                    child: Text("Get Image"),
-                  ),
-                  SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: () async {
-                      try {
-                        uploadImage(_pickedImage!);
-                        await Supabase.instance.client.from("notes").insert({
-                          "title": titleController.text,
-                          "content": contentController.text,
-                          "image_path": _imageUplodedPath,
-                        });
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text("Note added successfully!"),
-                            duration: Duration(seconds: 2),
-                            backgroundColor: const Color.fromARGB(
-                              255,
-                              81,
-                              76,
-                              175,
-                            ),
-                          ),
-                        );
-                        Navigator.of(context).pop();
-                      } catch (e) {
-                        AwesomeDialog(
-                          context: context,
-                          title: "Error",
-                          dialogType: DialogType.error,
-                          desc: e.toString(),
-                          btnOkOnPress: () {},
-                        ).show();
-                      }
-                    },
-                    child: Text("Add Note"),
-                  ),
-                ],
+                      ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: ElevatedButton.icon(
+                onPressed: _isSaving ? null : _showImageSourceDialog,
+                icon: const Icon(Icons.image),
+                label: const Text("Select Image"),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: ElevatedButton(
+                onPressed: _isSaving ? null : _addNote,
+                child: _isSaving
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text("Add Note"),
               ),
             ),
           ],
